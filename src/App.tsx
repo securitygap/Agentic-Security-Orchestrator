@@ -1328,14 +1328,6 @@ volumes:
               )}
             </span>
           </div>
-
-          <button 
-            onClick={() => setCustomParserOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#22D3EE] hover:bg-[#22D3EE]/95 text-[#0A0B0E] font-bold rounded-lg transition text-xs font-mono shadow-md shadow-cyan-500/10"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Parser Upload
-          </button>
         </div>
       </header>
 

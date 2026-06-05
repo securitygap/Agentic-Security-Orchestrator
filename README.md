@@ -1,107 +1,80 @@
-# Enterprise Threat Validation Hub — Local & Docker Runner Guide
+# Agentic Security Orchestrator: Manual de Arquitectura y Triage Automatizado
 
-This guide details how to set up, secure, and run the **Enterprise Threat Validation Hub** on your local machine (macOS) natively or via Docker. By configuring your **Gemini 3.5 Flash API Key**, the system moves from simulated defaults to live, real-time security assessment generation and source-report dynamic parsing.
+El **Agentic Security Orchestrator** es una solución de vanguardia diseñada para procesar, enriquecer, validar de manera activa y remediar de forma autónoma anomalías de seguridad y hallazgos provenientes de múltiples escáneres estáticos y dinámicos (DAST, SAST, e informes manuales). 
 
----
-
-## 🚀 How the Real AI Core Operates
-By default, the platform supports a dual evaluation mode:
-1. **Simulation Mode (Fallback)**: When no API Key is set, the validation runs and parses uploaded reports using high-fidelity local templates. This ensures the app is responsive even without credentials.
-2. **Live Gemini-3.5 Mode (Real)**: When you provide a valid `GEMINI_API_KEY`, the server initializes a secure `@google/genai` client. When validation workflows or report parsing are triggered with this mode active:
-   * **Custom XML/PDF Report Parsing**: The uploaded report is parsed live using Gemini to align schemas and map out endpoints.
-   * **Evidence Correlation Agent**: Raw server response traces are dynamically analyzed.
-   * **Risk Scoring & Remediation**: Gemini scores risks and writes custom code patches (Vulnerable vs. Remediated) for the exact vulnerability on the fly rather than using generic mock constants.
-   * **Visual Active Indicator**: A dynamic status light in the interface header will pulse green and show **`GEMINI-3.5 (LIVE)`** so you always know when your key is fully active.
+Esta plataforma transforma hallazgos estáticos crudos en resultados validados con evidencia real y código de reparación listo para producción mediante un flujo orquestado por agentes inteligentes autónomos alimentados con Google Gemini 3.5.
 
 ---
 
-## 🛠️ Option 1: Native Local Run (Mac or Linux)
+## 🧭 Flujo de Triage de Vulnerabilidades (Multi-Agent Graph)
 
-Ensure you have **Node.js (v18 or higher)** and **npm** installed on your Mac.
+La solución utiliza una arquitectura de agentes cooperativos basada en un grafo de estados lógico, estructurado de la siguiente manera:
 
-### 1. Configure the Environment
-Copy the example environment file and name it `.env`:
-```bash
-cp .env.example .env
 ```
-Open the `.env` file and insert your Gemini API Key:
-```env
-GEMINI_API_KEY="your_actual_gemini_3.5_flash_key_here"
+[Reporte de Seguridad] ───► [Parser Agent]
+                                   │
+                                   ▼
+                            [Router Agent] ───► (Analiza CWE/OWASP)
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         ▼                         ▼                         ▼
+   [SQLi Node]                [XSS Tester]             [SSRF Tracker] etc.
+         │                         │                         │
+         └─────────────────────────┬─────────────────────────┘
+                                   ▼
+                        [Pre-Auth Session Manager]
+                                   │
+                                   ▼
+                        [Active Validation Probe]
+                                   │
+                                   ▼
+                       [Scoring & Remediation Agent] ───► [Código Remedio / Parche]
 ```
 
-### 2. Install Dependencies
-Install all package packages listed in `package.json`:
-```bash
-npm install
-```
+El ciclo de triage y validación consta de 6 fases secuenciales totalmente automatizadas:
 
-### 3. Run in Development Mode
-To boot up the application in interactive development with real-time assets reloading, run:
-```bash
-npm run dev
-```
-Open your browser to `http://localhost:3000`.
+### 1. Ingesta y Estandarización (Parser Agent)
+El **Parser Agent** recibe datos en formatos heterogéneos (como reportes XML de Burp Suite, JSON de OWASP ZAP, reportes de Invicti o Nuclei, o texto extraído de PDF) y los analiza en tiempo real empleando IA.
+- **Función**: Neutraliza diferencias de formato, mapea correctamente campos críticos (método HTTP, endpoint, clases CWE) y genera un modelo de datos unificado estándar para el resto del motor de decisión.
 
-### 4. Build and Run in Production Mode
-For optimal performance, compile files and start the production application:
-```bash
-# Build Vite assets and compile TypeScript server CJS bundle
-npm run build
+### 2. Clasificación de Amenazas y Dependencias (Router Agent)
+El **Router Agent** inspecciona las características del hallazgo (firmas de vectores, clases OWASP y severidad declarada) para direccionar el esfuerzo de análisis hacia el nodo de validación especializado.
+- **Direccionamiento**:
+  - `SQL Injection (SQLi)` ➔ **SQLi Validating Node**
+  - `Cross-Site Scripting (XSS)` ➔ **XSS Sandboxed Playwright Tester**
+  - `Server-Side Request Forgery` ➔ **SSRF Request Tracker**
+  - `Insecure Direct Object Reference (IDOR)` ➔ **IDOR Dual-Token Comparison Tester**
+  - `JSON Web Token (JWT) Issues` ➔ **JWT Sign-Bypass Validation Node**
 
-# Start the optimized Node server
-npm start
-```
+### 3. Agregación Contextual (Enrichment Agent)
+Antes de interactuar con el entorno objetivo, el **Enrichment Agent** correlaciona de manera heurística y mediante API los identificadores de vulnerabilidad con bases de datos públicas de telemetría de amenazas.
+- **Función**: Junta información clave como exploits conocidos en la naturaleza (por ejemplo, firmas de Metasploit, plantillas Nuclei), historial de CVEs relacionados y estándares mundiales de remediación.
+
+### 4. Gestión Inteligente de Sesiones (Pre-Auth Session Manager)
+Para vulnerabilidades protegidas por perímetros de autenticación (`requires_login`), el sistema activa un subsistema dinámico de credenciales.
+- **Función**: Ejecuta solicitudes de autenticación previas (handshake) en el endpoint configurado, gestiona y captura tokens de tipo *Bearer* o Cookies de sesión, e inyecta dichas cabeceras de autorización de forma segura en las consultas de explotación activa del paso subsecuente.
+
+### 5. Validación Activa no Destructiva (Active Validation Probe)
+Los agentes especializados ejecutan pruebas de concepto (*Proof-of-Concept* o PoC) controladas y parametrizadas directamente contra el endpoint objetivo indicado.
+- **Función**: Envía cargas útiles adaptadas a las cabeceras/parámetros, capturando y registrando de manera aislada los bytes de respuesta, códigos HTTP, latencias y firmas visuales. Esto evita falsos positivos determinando si el puerto o endpoint reacciona verdaderamente de forma vulnerable.
+
+### 6. Análisis de Evidencia, Puntaje y Parcheo (Remediation & Scoring Agent)
+Una vez finalizada la consulta, el agente recopila los rastros de depuración ("traces"), respuestas de cabecera y el cuerpo del error obtenido de los servidores analizados.
+- **Generación de Puntaje**: Calcula un impacto real correlacionando la explotabilidad detectada en vivo vs. la teórica.
+- **Creación de Remedios con IA**: La IA genera propuestas analizando la sintaxis exacta del endpoint vulnerable y produce dos bloques de código en tiempo real:
+  - **Vulnerable Snippet**: Fragmento que ilustra el error estructural (ej. falta de tipado, concatenación SQL directa).
+  - **Remediated Snippet**: Código endurecido propuesto, listo para ser integrado, implementando saneamiento, sentencias preparadas o validación estricta de dominios según corresponda.
 
 ---
 
-## 🐳 Option 2: Run with Docker (Recommended for macOS)
+## 🛡️ Características Principales del Agentic Security Orchestrator
 
-Docker isolates all environments and dependencies, making configuration effortless. This setup maps host port **3005** to container port **3000** automatically (so there's zero conflict with local Burp Suite installs listening on port 8080 or other local processes).
-
-### 1. Build and Run via Docker Compose (Simplest)
-This manages volume boundaries, host port bindings, and environment passing automatically.
-
-1. Create a `.env` in the root folder containing:
-   ```env
-   GEMINI_API_KEY="your_actual_gemini_3.5_flash_key_here"
-   ```
-2. Build the image and spin up the container:
-   ```bash
-   docker compose up --build
-   ```
-   *The application will boot up on port 3005.*
-3. Open your browser to `http://localhost:3005`.
-4. To stop the container, press `Ctrl + C` or execute:
-   ```bash
-   docker compose down
-   ```
-
-### 2. Build and Run via Standard Docker Commands
-If you prefer not to use Docker Compose, you can run normal docker directives.
-
-1. **Build the Docker Image**:
-   ```bash
-   docker build -t threat-copilot .
-   ```
-2. **Run the Container** (directly passing the environment variable and mapping port 3005):
-   ```bash
-   docker run -d -p 3005:3000 -e GEMINI_API_KEY="your_actual_gemini_3.5_flash_key_here" --name threat-copilot-run threat-copilot
-   ```
-3. Open your browser to `http://localhost:3005`.
-4. To view live server logs:
-   ```bash
-   docker logs -f threat-copilot-run
-   ```
-5. To stop the container:
-   ```bash
-   docker stop threat-copilot-run && docker rm threat-copilot-run
-   ```
+1. **Orquestación Basada en Grafos de Estado**: Flujos de trabajo secuenciales y deterministas dirigidos por agentes que comparten contexto mutuo, logrando decisiones sofisticadas paso a paso sin intervención humana.
+2. **Eliminación Absoluta de Falsos Positivos**: Solo clasifica un fallo como "Verificado" si el agente de validación activa logra provocar un cambio de estado determinista, un rastro analizable o una respuesta de comportamiento anómalos pero seguros en el sistema destino.
+3. **Mecanismo Dynamic Pre-Auth**: Capacidad para sortear inicios de sesión de aplicaciones modernas mediante un gestor de handshakes dinámico con soporte para JSON payloads y cabeceras personalizables.
+4. **Motor de Remediación Hiper-Personalizado**: A diferencia de los escáneres estáticos tradicionales que proveen recomendaciones generales (de tipo "sanitice sus entradas"), genera código de producción corregido que encaja exactamente con el endpoint y la lógica inspeccionada.
+5. **Panel Interactivo de Traces (Orchestrator Cockpit)**: Consola visual con hilos de ejecución en vivo separados por agente, lo que confiere transparencia y auditoría total (White Box) sobre las interacciones de seguridad realizadas.
 
 ---
 
-## 📁 Key File Structure Highlights
-For local modifications, here are the main files you can explore:
-* `server.ts`: Initialized the Express backend, processes `@google/genai` model requests, handles parsing endpoints, and hosts the static file server fallback.
-* `src/App.tsx`: Main React UI dashboard, manages the visualization state, processes active log outputs, and implements custom report uploaded pipelines.
-* `src/types.ts`: Holds data types for vulnerabilities, validation steps, and metrics.
-* `Dockerfile` / `docker-compose.yml`: Local Docker environment configurations.
+> Nota sobre la configuración y ejecución local: Para arrancar esta aplicación con el entorno de orquestación en vivo (utilizando Gemini-3.5 Flash), consulte la guía en [README_DEPLOYMENT.md](README_DEPLOYMENT.md).
