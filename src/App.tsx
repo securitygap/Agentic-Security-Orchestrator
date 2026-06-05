@@ -44,6 +44,7 @@ export default function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [useRealAi, setUseRealAi] = useState(true);
   const [serverAiActive, setServerAiActive] = useState<boolean | null>(null);
+  const [quotaExceeded, setQuotaExceeded] = useState<boolean>(false);
   
   // Choose which vulnerabilities to validate (checked by default)
   const [checkedVulnsForValidation, setCheckedVulnsForValidation] = useState<Record<string, boolean>>({});
@@ -229,9 +230,11 @@ export default function App() {
       const res = await fetch("/api/ai-status");
       const data = await res.json();
       setServerAiActive(!!data.aiActive);
+      setQuotaExceeded(!!data.hasQuotaLimit);
     } catch (e) {
       console.error("Error loading server Gemini status", e);
       setServerAiActive(false);
+      setQuotaExceeded(false);
     }
   };
 
@@ -889,6 +892,9 @@ export default function App() {
         });
         const data = await res.json();
         if (data.success && data.run) {
+          if (data.hasQuotaLimit) {
+            setQuotaExceeded(true);
+          }
           setActiveRun(data.run);
           setCompletedRuns(prev => [...prev, data.run]);
           setSelectedRunForPacketInspection(data.run);
@@ -1317,19 +1323,19 @@ volumes:
               <div className="w-8 h-4.5 bg-[#2D3139] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#94A3B8] after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-[#22D3EE] peer-checked:after:bg-white"></div>
             </label>
             <span className={`font-mono font-semibold text-[10px] flex items-center gap-1.5 ${
-              useRealAi ? (serverAiActive === true ? "text-[#22D3EE]" : "text-amber-400") : "text-slate-400"
+              useRealAi ? (serverAiActive === true ? (quotaExceeded ? "text-amber-400" : "text-[#22D3EE]") : "text-amber-400") : "text-slate-400"
             }`}>
               {useRealAi ? (
                 <>
                   <span className={`w-1.5 h-1.5 rounded-full ${
                     serverAiActive === true 
-                      ? "bg-[#22D3EE] shadow-[0_0_8px_#22D3EE] animate-pulse" 
+                      ? (quotaExceeded ? "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" : "bg-[#22D3EE] shadow-[0_0_8px_#22D3EE] animate-pulse")
                       : serverAiActive === false 
                         ? "bg-amber-500" 
                         : "bg-slate-500 animate-pulse"
                   }`}></span>
                   {serverAiActive === true 
-                    ? "GEMINI-3.5 (LIVE)" 
+                    ? (quotaExceeded ? "GEMINI (QUOTA LIMIT)" : "GEMINI-3.5 (LIVE)") 
                     : serverAiActive === false 
                       ? "GEMINI-3.5 (NO API KEY)" 
                       : "GEMINI-3.5 (CHECKING...)"}
@@ -1348,6 +1354,28 @@ volumes:
       {/* Main Tabs Content Router */}
       {activeTab === "cockpit" && (
         <div className="flex-1 flex flex-col gap-6 p-6 overflow-y-auto">
+          
+          {quotaExceeded && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-amber-400 text-xs font-mono flex items-start justify-between gap-3 shadow-md">
+              <div className="flex gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                <div>
+                  <span className="font-bold uppercase tracking-wider block text-amber-300">AVISO: LÍMITE DE CUOTA GEMINI EXCEDIDO (429 RESOURCE EXHAUSTED)</span>
+                  <span className="text-[11px] leading-normal mt-1 block">
+                    Has excedido el límite actual de solicitudes en tu clave de la API de Gemini. 
+                    El orquestador de agentes se ha redirigido automáticamente a la <strong>Estructura de Triage Heurística Local</strong> para mantener la app 100% operativa. 
+                    Puedes continuar ejecutando pruebas y aserciones completas utilizando este fallback simulado.
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setQuotaExceeded(false)}
+                className="text-amber-400/70 hover:text-white hover:bg-amber-500/20 px-1.5 py-0.5 rounded text-[10px] select-none cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
           
           {/* Row 1: Catalog & Unified Console Panel */}
           <div className="grid grid-cols-12 gap-5 items-stretch">

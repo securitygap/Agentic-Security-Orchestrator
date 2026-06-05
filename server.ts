@@ -104,6 +104,7 @@ app.use(express.json());
 // Initialize Gemini SDK with telemetry header according to guidelines
 const apiKey = process.env.GEMINI_API_KEY;
 let ai: GoogleGenAI | null = null;
+let hasQuotaLimit = false;
 if (apiKey) {
   ai = new GoogleGenAI({
     apiKey: apiKey,
@@ -159,9 +160,12 @@ async function generateContentWithRetryAndFallback(
         const isQuotaDepleted = 
           errMessage.includes("quota") ||
           errMessage.includes("Quota") ||
-          errMessage.includes("RESOURCE_EXHAUSTED");
+          errMessage.includes("RESOURCE_EXHAUSTED") ||
+          errMessage.includes("429") ||
+          err.status === 429;
 
         if (isQuotaDepleted) {
+          hasQuotaLimit = true;
           console.log(`[AI Core] Quota limit hit on ${modelName}: ${displayMsg}. Skipping retries for fast fallback.`);
           break; // Don't retry; try the next model or fail immediately to trigger local heuristic fallback
         }
@@ -545,7 +549,7 @@ app.post("/api/auth-setup/test", express.json(), async (req, res) => {
 
 // Endpoint to check if the Gemini client is loaded with an API key
 app.get("/api/ai-status", (req, res) => {
-  res.json({ aiActive: !!ai });
+  res.json({ aiActive: !!ai, hasQuotaLimit });
 });
 
 // Dynamic parsing agent endpoint for custom reports upload simulator
@@ -1057,6 +1061,7 @@ app.post("/api/runs/execute", async (req, res) => {
     } catch (e: any) {
       const isQuota = String(e.message || "").includes("429") || String(e.message || "").includes("Quota") || String(e.message || "").includes("quota") || String(e.message || "").includes("RESOURCE_EXHAUSTED");
       if (isQuota) {
+        hasQuotaLimit = true;
         addLog("System", "warning", `Dual-Agent AI Pipeline active on Shared Free Tier hit API limits (429 Quota Exceeded). Automatically engaging offline Heuristic Triage Framework with cached local models.`);
       } else {
         addLog("System", "error", `Gemini API execution error: ${e.message || e}`);
@@ -1130,7 +1135,7 @@ app.post("/api/runs/execute", async (req, res) => {
   };
 
   await saveRunToFirestore(completedRun);
-  res.json({ success: true, run: completedRun });
+  res.json({ success: true, run: completedRun, hasQuotaLimit });
 });
 
 function getMockInsecureCode(type: string): string {
