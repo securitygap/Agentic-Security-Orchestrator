@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  threat-copilot:
+    build: .
+    container_name: threat-copilot-app
+    ports:
+      - "3005:3000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NODE_ENV=production
+    # If a local .env is present, Docker Compose will automatically use it
+    env_file:
+      - .env
+    restart: unless-stopped

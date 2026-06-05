@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg: #0A0B0E;
+  --card: #14161A;
+  --accent: #22D3EE;
+  --border: #2D3139;
+  --text-dim: #94A3B8;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --color-bento-bg: #0A0B0E;
+  --color-bento-card: #14161A;
+  --color-bento-accent: #22D3EE;
+  --color-bento-border: #2D3139;
+  --color-bento-text-dim: #94A3B8;
+}
+
+body {
+  background-color: var(--bg);
+  color: #F1F5F9;
+  font-family: var(--font-sans);
+}
+
+/* Custom classes for Bento Grid style elements */
+.bento-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.label-tiny {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.mono-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  display: inline-block;
+  margin-right: 6px;
+  box-shadow: 0 0 8px #10B981;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0A0B0E;
+}
+::-webkit-scrollbar-thumb {
+  background: #2D3139;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}

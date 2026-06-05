@@ -1,0 +1,6 @@
+{
+  "name": "Agentic Security Orchestrator",
+  "description": "An enterprise-grade orchestration workspace simulating a LangGraph-centered multi-agent vulnerability triage, automated validation, and risk remediation engine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

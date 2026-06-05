@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "vulnerability": {
+      "title": "Vulnerability Document",
+      "description": "A detected or cataloged vulnerability",
+      "type": "object",
+      "properties": {
+        "vulnerability_id": { "type": "string" },
+        "service": { "type": "string" },
+        "type": { "type": "string" },
+        "severity": { "type": "string" },
+        "method": { "type": "string" },
+        "endpoint": { "type": "string" },
+        "parameter": { "type": "string" },
+        "url": { "type": "string" },
+        "payload": { "type": "string" },
+        "evidence": { "type": "string" },
+        "recommendation": { "type": "string" }
+      },
+      "required": ["vulnerability_id", "type", "severity", "url"]
+    },
+    "verificationRun": {
+      "title": "Verification Run Results",
+      "description": "An orchestrated active verification test and agent pipeline outcome",
+      "type": "object",
+      "properties": {
+        "runId": { "type": "string" },
+        "vulnerabilityId": { "type": "string" },
+        "status": { "type": "string" },
+        "currentStep": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "confirmed": { "type": "boolean" },
+            "evidenceText": { "type": "string" },
+            "requestTrace": { "type": "string" },
+            "rawResponse": { "type": "string" }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "model": { "type": "string" },
+            "latency_ms": { "type": "integer" },
+            "cost": { "type": "number" },
+            "tokens": { "type": "integer" },
+            "confidence": { "type": "number" }
+          }
+        },
+        "recommendation": {
+          "type": "object",
+          "properties": {
+            "solution": { "type": "string" },
+            "code_before": { "type": "string" },
+            "code_after": { "type": "string" }
+          }
+        },
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "timestamp": { "type": "string" },
+              "agentName": { "type": "string" },
+              "level": { "type": "string" },
+              "message": { "type": "string" }
+}
+          }
+        }
+      },
+      "required": ["runId", "vulnerabilityId", "status", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/vulnerabilities/{vulnerabilityId}": {
+      "schema": "vulnerability",
+      "description": "Threat vulnerabilities catalog entries"
+    },
+    "/runs/{runId}": {
+      "schema": "verificationRun",
+      "description": "Orchestrated verification run outcomes"
+    }
+  }
+}
