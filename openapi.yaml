@@ -1,0 +1,636 @@
+openapi: 3.0.3
+info:
+  title: Agentic Security Orchestrator API
+  description: >-
+    Especificación de la API de la solución de triaje automatizado y
+    validación de vulnerabilidades de seguridad orquestada por agentes de Inteligencia Artificial (Google Gemini 3.5).
+  version: 1.0.0
+servers:
+  - url: /
+    description: Host local o del contenedor en ejecución
+paths:
+  /api/ai-status:
+    get:
+      summary: Verificar el estado de la integración de Inteligencia Artificial (Gemini)
+      description: Comprueba si el backend ha cargado de manera segura e inicializado el cliente `@google/genai` mediante una clave válida `GEMINI_API_KEY`.
+      responses:
+        '200':
+          description: Estado procesado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  aiActive:
+                    type: boolean
+                    description: Indica si el módulo de Gemini está activo y listo para procesar solicitudes.
+                    example: true
+
+  /api/vulnerabilities:
+    get:
+      summary: Obtener el catálogo de vulnerabilidades
+      description: Recupera todas las vulnerabilidades registradas y cargadas en la base de datos (Firestore o cache local).
+      responses:
+        '200':
+          description: Listado devuelto con éxito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vulnerabilities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vulnerability'
+        '500':
+          description: Error del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Registrar o importar nuevas vulnerabilidades de seguridad
+      description: Permite registrar una sola vulnerabilidad o importar un lote masivo ("bulk"). Adicionalmente, puede guardar información de inicio de sesión necesaria para la verificación.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vulnerability:
+                  $ref: '#/components/schemas/VulnerabilityInput'
+                vulnerabilities:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/VulnerabilityInput'
+                auth_setup:
+                  $ref: '#/components/schemas/AuthSetupInput'
+      responses:
+        '200':
+          description: Vulnerabilidad(es) creada(s) correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    description: Número de vulnerabilidades cargadas
+                    example: 1
+                  vulnerability:
+                    $ref: '#/components/schemas/Vulnerability'
+                  list:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vulnerability'
+        '400':
+          description: Payload inválido de petición
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error del servidor al guardar en base de datos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/runs:
+    get:
+      summary: Listar ejecuciones históricas de triaje y validación
+      description: Obtiene el registro de todas las ejecuciones de agentes completadas y en curso.
+      responses:
+        '200':
+          description: Listado devuelto con éxito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValidationRun'
+        '500':
+          description: Error de servidor al consultar registros
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/runs/execute:
+    post:
+      summary: Disparar el grafo de orquestación multi-agente
+      description: Inicia el ciclo de vida de validación activa para una vulnerabilidad específica. Ejecuta la clasificación, enriquecimiento, inicio de sesión (Pre-Auth), exploits simulados de firma y generación de código corrector con IA.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vulnerability
+              properties:
+                vulnerability:
+                  $ref: '#/components/schemas/Vulnerability'
+                useRealAi:
+                  type: boolean
+                  description: Indica si se debe priorizar llamadas reales a Gemini en lugar del simulador.
+                  example: true
+                auth_setup:
+                  $ref: '#/components/schemas/AuthSetupInput'
+      responses:
+        '200':
+          description: Flujo de agentes de seguridad concluido y guardado con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationRun'
+        '400':
+          description: Falta de datos requeridos de vulnerabilidad
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/parser/parse:
+    post:
+      summary: Normalizar reporte crudo utilizando el Agente Parser Inteligente
+      description: Recibe extractos de logs o reportes provenientes de herramientas externas (XML de Burp Suite, JSON de ZAP, CSV de Nessus o texto crudo) y los unifica en la estructura de datos compatible mediante el modelo generativo de Gemini.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rawContent
+              properties:
+                fileType:
+                  type: string
+                  description: Extensión o tipo del informe de entrada
+                  example: xml
+                rawContent:
+                  type: string
+                  description: Texto plano con los hallazgos de seguridad
+                  example: "<issue><uri>/api/users</uri><method>POST</method><severity>High</severity></issue>"
+      responses:
+        '200':
+          description: Reporte procesado y normalizado con éxito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  parsed:
+                    $ref: '#/components/schemas/Vulnerability'
+        '400':
+          description: Falta de contenido crudo en el cuerpo de la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Fallo fatal del Agente Parser Inteligente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth-setup:
+    get:
+      summary: Obtener configuración del gestor de sesiones autenticadas (Pre-Auth)
+      description: Recupera la receta activa de autenticación (URL, método, cookies/headers de sesión manuales y mapeador de tokens).
+      responses:
+        '200':
+          description: Configuración recuperada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  setup:
+                    $ref: '#/components/schemas/AuthSetup'
+                  active:
+                    type: boolean
+                    description: Indica si el gestor dinámico de sesiones está configurado e inicializado
+                    example: true
+    post:
+      summary: Actualizar la receta de autenticación del gestor de sesiones
+      description: Guarda o redefine las reglas utilizadas para iniciar sesión en el endpoint protegido previo a la ejecución del exploit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - setup
+              properties:
+                setup:
+                  $ref: '#/components/schemas/AuthSetupInput'
+      responses:
+        '200':
+          description: Receta de autenticación actualizada correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  setup:
+                    $ref: '#/components/schemas/AuthSetup'
+        '400':
+          description: Parámetros incompletos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth-setup/test:
+    post:
+      summary: Probar la sesión y validar la extracción de Tokens en tiempo real
+      description: Realiza de manera inmediata la consulta de autenticación utilizando los datos configurados, registra los traces e intenta capturar y aislar el token de acceso para confirmar que el Pre-Auth funciona.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - setup
+              properties:
+                setup:
+                  $ref: '#/components/schemas/AuthSetupInput'
+      responses:
+        '200':
+          description: Prueba de sesión finalizada. Informa los flujos de depuración y token extraído.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: integer
+                    description: Código HTTP retornado por el API destino
+                    example: 200
+                  logs:
+                    type: array
+                    items:
+                      type: string
+                    description: Bitácora detallada de transacciones HTTP del gestor de sesiones
+                  token:
+                    type: string
+                    description: Token capturado y aislado
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Petición mal estructurada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Vulnerability:
+      type: object
+      required:
+        - vulnerability_id
+        - title
+        - type
+        - cwe
+        - owasp
+        - severity
+        - cvss
+        - method
+        - endpoint
+        - url
+        - requires_login
+        - source
+        - validation_strategy
+        - description
+      properties:
+        vulnerability_id:
+          type: string
+          description: Identificador UUID único de la vulnerabilidad alineada
+          example: VULN-ID-8349
+        title:
+          type: string
+          description: Título descriptivo de la anomalía de seguridad detectada
+          example: Inyección SQL en endpoint de inicio de sesión de usuario
+        type:
+          type: string
+          description: Categoría principal de vulnerabilidad
+          example: SQL Injection
+        cwe:
+          type: string
+          description: Código Common Weakness Enumeration relacionado
+          example: CWE-89
+        owasp:
+          type: string
+          description: Clasificación de riesgo OWASP Top 10 correspondiente
+          example: A03:2021-Injection
+        severity:
+          type: string
+          description: Nivel cualitativo de severidad estimada
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+          example: HIGH
+        cvss:
+          type: number
+          format: float
+          description: Calificación cuantitativa ponderada sobre 10
+          example: 8.8
+        method:
+          type: string
+          description: Método HTTP de consulta utilizado al probar el objetivo
+          example: POST
+        endpoint:
+          type: string
+          description: Ruta relativa del recurso sospechoso
+          example: /rest/user/login
+        parameter:
+          type: string
+          description: Parámetros del request (JSON, Query string, Form) donde viaja la carga útil
+          example: email
+        url:
+          type: string
+          description: Dirección URL absoluta que recibirá los sondeos de los agentes
+          example: https://juice-shopa.onrender.com/rest/user/login
+        payload:
+          type: string
+          description: Vector de ataque o cadena maliciosa utilizada para la comprobación
+          example: admin@juice-sh.op' OR '1'='1
+        requires_login:
+          type: boolean
+          description: Informa si este recurso requiere inyección de sesión autenticada previa
+          example: false
+        source:
+          type: string
+          description: Canal o herramienta de origen del reporte
+          example: Burp Suite Professional XML Export
+        validation_strategy:
+          type: string
+          description: Lógica guiada a ejecutar para inferir el éxito del ataque
+          example: Boolean-based response differentiation logic verification
+        description:
+          type: string
+          description: Resumen técnico extendido de la anomalía
+          example: El endpoint concatena de forma insegura parámetros del usuario en sentencias SQL.
+
+    VulnerabilityInput:
+      type: object
+      required:
+        - title
+      properties:
+        vulnerability_id:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        cwe:
+          type: string
+        owasp:
+          type: string
+        severity:
+          type: string
+        cvss:
+          type: number
+        method:
+          type: string
+        endpoint:
+          type: string
+        parameter:
+          type: string
+        url:
+          type: string
+        payload:
+          type: string
+        requires_login:
+          type: boolean
+        source:
+          type: string
+        validation_strategy:
+          type: string
+        description:
+          type: string
+
+    AuthSetup:
+      type: object
+      properties:
+        auth_url:
+          type: string
+          example: https://juice-shopa.onrender.com/rest/user/login
+        auth_method:
+          type: string
+          example: POST
+        auth_headers:
+          type: object
+          additionalProperties:
+            type: string
+          example: { "Content-Type": "application/json" }
+        auth_payload:
+          type: string
+          example: '{"email":"admin@juice-sh.op","password":"admin"}'
+        token_path:
+          type: string
+          example: authentication.token
+        token_type:
+          type: string
+          example: Bearer
+        token_header:
+          type: string
+          example: Authorization
+        session_token:
+          type: string
+          description: Token de sesión actual guardado o extraído activo
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    AuthSetupInput:
+      type: object
+      properties:
+        auth_url:
+          type: string
+        auth_method:
+          type: string
+        auth_headers:
+          type: object
+          additionalProperties:
+            type: string
+        auth_payload:
+          type: string
+        token_path:
+          type: string
+        token_type:
+          type: string
+        token_header:
+          type: string
+        session_token:
+          type: string
+
+    ValidationRun:
+      type: object
+      required:
+        - runId
+        - vulnerabilityId
+        - vulnerability
+        - status
+        - currentStep
+        - logs
+        - agentStates
+      properties:
+        runId:
+          type: string
+          description: Identificador único de la ejecución del grafo
+          example: RUN-72381-189
+        vulnerabilityId:
+          type: string
+          description: Referencia a la vulnerabilidad bajo prueba
+          example: VULN-ID-8349
+        vulnerability:
+          $ref: '#/components/schemas/Vulnerability'
+        status:
+          type: string
+          enum: [running, completed, failed]
+          example: completed
+        currentStep:
+          type: string
+          description: Resumen textual de la última actividad realizada por los agentes
+          example: "Correlation & Remediation Built"
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunLog'
+        agentStates:
+          type: object
+          description: Estatus de los agentes lógicos individuales
+          properties:
+            parser:
+              $ref: '#/components/schemas/AgentState'
+            router:
+              $ref: '#/components/schemas/AgentState'
+            enrichment:
+              $ref: '#/components/schemas/AgentState'
+            val_specific:
+              $ref: '#/components/schemas/AgentState'
+        evidence:
+          $ref: '#/components/schemas/EvidenceDetails'
+
+    RunLog:
+      type: object
+      required:
+        - id
+        - agent
+        - type
+        - timestamp
+        - message
+      properties:
+        id:
+          type: string
+          example: log-171829031
+        agent:
+          type: string
+          description: Agente emisor del registro de depuración
+          example: Router Agent
+        type:
+          type: string
+          enum: [info, success, warn, error]
+          example: success
+        timestamp:
+          type: string
+          format: date-time
+          example: 18:51:38
+        message:
+          type: string
+          description: Texto con detalles o tramas de red recibidas
+          example: Router Agent directed validation task based on threat signatures.
+
+    AgentState:
+      type: object
+      required:
+        - id
+        - name
+        - status
+      properties:
+        id:
+          type: string
+          example: a1
+        name:
+          type: string
+          example: Router Agent
+        status:
+          type: string
+          enum: [idle, running, completed, failed]
+          example: completed
+        lastOutput:
+          type: object
+          description: Último objeto o payload producido u obtenido por el agente
+
+    EvidenceDetails:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Diagnóstico de validación emitido por los agentes
+          example: VERIFIED (Vulnerable)
+        confidence:
+          type: integer
+          description: Porcentaje de certeza lógica obtenido del análisis
+          example: 95
+        requestTrace:
+          type: string
+          description: Resumen textual de los bytes enviados en la sonda HTTP
+          example: "POST /rest/user/login HTTP/1.1\nHost: target\n..."
+        rawResponse:
+          type: string
+          description: Fragmento de la respuesta HTTP devuelta por el blanco analizado
+          example: "HTTP/1.1 200 OK\nContent-Type: application/json\n..."
+        cvssAdjusted:
+          type: number
+          format: float
+          description: Puntaje CVSS optimizado a la realidad de la prueba activa
+          example: 9.1
+        securePatch:
+          $ref: '#/components/schemas/SecurePatch'
+
+    SecurePatch:
+      type: object
+      properties:
+        explanation:
+          type: string
+          description: Justificación técnica sobre el error original de arquitectura y la corrección aplicada
+          example: La inyección SQL se mitiga parametrizando la consulta de entrada en lugar de concatenar cadenas directo.
+        vulnerableCode:
+          type: string
+          description: Porción de código vulnerable detectada o modelada para ilustración
+          example: "const q = 'SELECT * FROM users WHERE email=' + req.body.email;"
+        patchCode:
+          type: string
+          description: Bloque de código endurecido recomendado listo para implementar
+          example: "const q = 'SELECT * FROM users WHERE email=?';"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Mensaje descriptivo con detalles del error
+          example: Error interno del sistema al intentar conectar con base de datos.

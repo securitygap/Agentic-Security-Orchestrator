@@ -1165,6 +1165,11 @@ function getMockSecureCode(type: string): string {
   return `// SECURE SIGNED CONTROLLER\nconst jwt = require('jsonwebtoken');\n\napp.post('/api/admin', (req, res) => {\n  const token = req.headers.authorization;\n  // Enforcing strict HMAC alg verification signature lookup constraints\n  const decoded = jwt.verify(token, process.env.JWT_SECRET, {\n    algorithms: ['HS256']\n  });\n});`;
 }
 
+// Serve OpenAPI Spec file
+app.get("/openapi.yaml", (req, res) => {
+  res.sendFile(path.join(process.cwd(), "openapi.yaml"));
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

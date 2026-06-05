@@ -77,4 +77,19 @@ Una vez finalizada la consulta, el agente recopila los rastros de depuración ("
 
 ---
 
+## 📖 Especificación de APIs (OpenAPI / Swagger)
+
+La solución viene equipada con su especificación técnica completa en formato estándar **OpenAPI 3.0.3**, ideal para ser importada en herramientas de testing o plataformas de desarrollo API como Postman, Insomnia o Swagger UI.
+
+### ¿Dónde encontrarla?
+* **Archivo Estático**: Ubicado en el archivo [`/openapi.yaml`](/openapi.yaml) en la raíz del proyecto.
+* **Puerto en Vivo**: Cuando el servidor está levantado (ya sea de forma local o a través de Docker), puedes descargar la especificación directamente en la ruta:
+  ```http
+  GET http://localhost:3000/openapi.yaml
+  ```
+
+Esta especificación detalla de manera estricta los esquemas de entradad y salida, descripciones, objetos para el Grafo de Orquestación, así como el gestor automatizado de tokens (Pre-Auth).
+
+---
+
 > Nota sobre la configuración y ejecución local: Para arrancar esta aplicación con el entorno de orquestación en vivo (utilizando Gemini-3.5 Flash), consulte la guía en [README_DEPLOYMENT.md](README_DEPLOYMENT.md).
