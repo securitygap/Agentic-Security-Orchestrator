@@ -1,6 +1,6 @@
-# Enterprise Threat Validation Hub — Local & Docker Runner Guide
+# Enterprise Agentic Security Orchestrator — Local & Docker Runner Guide
 
-This guide details how to set up, secure, and run the **Enterprise Threat Validation Hub** on your local machine (macOS) natively or via Docker. By configuring your **Gemini 3.5 Flash API Key**, the system moves from simulated defaults to live, real-time security assessment generation and source-report dynamic parsing.
+This guide details how to set up, secure, and run the **Enterprise Agentic Security Orchestrator** on your local machine (macOS) natively or via Docker. By configuring your **Gemini 3.5 Flash API Key**, the system moves from simulated defaults to live, real-time security assessment generation and source-report dynamic parsing.
 
 ---
 
