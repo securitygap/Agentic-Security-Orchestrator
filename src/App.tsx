@@ -31,7 +31,8 @@ import {
   Copy,
   FileCode,
   Lock,
-  Unlock
+  Unlock,
+  Key
 } from "lucide-react";
 import { Vulnerability, ScanRun, AgentRunLog, LLMComparisonMetric, Recommendation } from "./types";
 
@@ -45,6 +46,7 @@ export default function App() {
   const [useRealAi, setUseRealAi] = useState(true);
   const [serverAiActive, setServerAiActive] = useState<boolean | null>(null);
   const [quotaExceeded, setQuotaExceeded] = useState<boolean>(false);
+  const [userGeminiApiKey, setUserGeminiApiKey] = useState(() => localStorage.getItem("user_gemini_api_key") || "");
   
   // Choose which vulnerabilities to validate (checked by default)
   const [checkedVulnsForValidation, setCheckedVulnsForValidation] = useState<Record<string, boolean>>({});
@@ -135,7 +137,7 @@ export default function App() {
     fetchRuns();
     checkAiStatus();
     fetchAuthSetup();
-  }, []);
+  }, [userGeminiApiKey]);
 
   useEffect(() => {
     if (logEndRef.current) {
@@ -227,7 +229,12 @@ export default function App() {
 
   const checkAiStatus = async () => {
     try {
-      const res = await fetch("/api/ai-status");
+      const customKey = localStorage.getItem("user_gemini_api_key") || "";
+      const headers: Record<string, string> = {};
+      if (customKey) {
+        headers["X-Gemini-API-Key"] = customKey;
+      }
+      const res = await fetch("/api/ai-status", { headers });
       const data = await res.json();
       setServerAiActive(!!data.aiActive);
       setQuotaExceeded(!!data.hasQuotaLimit);
@@ -753,9 +760,14 @@ export default function App() {
     setIsParsingReport(true);
     setParsedVuln(null);
     try {
+      const customKey = localStorage.getItem("user_gemini_api_key") || "";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (customKey) {
+        headers["X-Gemini-API-Key"] = customKey;
+      }
       const res = await fetch("/api/parser/parse", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ fileType: reportFormat, rawContent: rawText })
       });
       const data = await res.json();
@@ -881,9 +893,14 @@ export default function App() {
       }
 
       try {
+        const customKey = localStorage.getItem("user_gemini_api_key") || "";
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (customKey) {
+          headers["X-Gemini-API-Key"] = customKey;
+        }
         const res = await fetch("/api/runs/execute", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ 
             vulnerability: targetVuln, 
             useRealAi,
@@ -1348,12 +1365,78 @@ volumes:
               )}
             </span>
           </div>
+
+          <div className="flex items-center gap-2 bg-[#14161A]/60 rounded-lg px-3 py-1.5 border border-[#2D3139] text-xs">
+            <Key className="w-3.5 h-3.5 text-[#94A3B8]" />
+            <input
+              type="password"
+              placeholder="GEMINI_API_KEY..."
+              value={userGeminiApiKey}
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                setUserGeminiApiKey(val);
+                if (val) {
+                  localStorage.setItem("user_gemini_api_key", val);
+                } else {
+                  localStorage.removeItem("user_gemini_api_key");
+                }
+              }}
+              className="bg-transparent border-none text-slate-200 placeholder-slate-600 focus:outline-none w-28 text-[11px] font-mono"
+            />
+            {userGeminiApiKey && (
+              <button
+                onClick={() => {
+                  setUserGeminiApiKey("");
+                  localStorage.removeItem("user_gemini_api_key");
+                }}
+                className="text-slate-500 hover:text-[#EF4444] cursor-pointer ml-1 text-[11px]"
+                title="Eliminar Clave"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Main Tabs Content Router */}
       {activeTab === "cockpit" && (
         <div className="flex-1 flex flex-col gap-6 p-6 overflow-y-auto">
+          
+          {!serverAiActive && useRealAi && !userGeminiApiKey && serverAiActive !== null && (
+            <div className="bg-[#22D3EE]/10 border border-[#22D3EE]/30 rounded-lg p-3.5 text-[#22D3EE] text-xs font-mono flex items-start justify-between gap-3 shadow-md">
+              <div className="flex gap-2.5 items-start w-full">
+                <Key className="w-4 h-4 shrink-0 text-[#22D3EE] mt-0.5" />
+                <div className="flex-1 text-left">
+                  <span className="font-bold uppercase tracking-wider block text-[#22D3EE]">INTEGRACIÓN DE IA RECOMENDADA (SIN CLAVE DE API DE GEMINI DETECTADA)</span>
+                  <span className="text-[11px] leading-normal mt-1 block text-slate-300">
+                    No se detectó ninguna `GEMINI_API_KEY` en el entorno del servidor ni local de la web. Para experimentar el triage agentico inteligente con razonamiento avanzado de Gemini en tiempo real, ingresa tu clave API abajo o arriba en la barra de control. 
+                    De lo contrario, la aplicación continuará funcionando perfectamente utilizando el motor heurístico local simulado de manera offline.
+                  </span>
+                  <div className="mt-3.5 flex flex-wrap items-center gap-2 max-w-lg">
+                    <span className="text-[10px] text-slate-400 shrink-0 uppercase tracking-widest font-bold">Configurar Clave:</span>
+                    <div className="flex items-center bg-[#14161A]/80 border border-[#2D3139] rounded px-2.5 py-1 w-full sm:w-80">
+                      <input
+                        type="password"
+                        placeholder="Ingresa tu clave de API Gemini (AI Studio)..."
+                        value={userGeminiApiKey}
+                        onChange={(e) => {
+                          const val = e.target.value.trim();
+                          setUserGeminiApiKey(val);
+                          if (val) {
+                            localStorage.setItem("user_gemini_api_key", val);
+                          } else {
+                            localStorage.removeItem("user_gemini_api_key");
+                          }
+                        }}
+                        className="bg-transparent border-none text-slate-200 placeholder-slate-600 focus:outline-none text-[11px] font-mono w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {quotaExceeded && (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-amber-400 text-xs font-mono flex items-start justify-between gap-3 shadow-md">

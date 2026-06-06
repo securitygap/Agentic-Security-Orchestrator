@@ -116,6 +116,21 @@ if (apiKey) {
   });
 }
 
+function getAiClient(req: any): GoogleGenAI | null {
+  const headerKey = req.headers["x-gemini-api-key"] || req.headers["X-Gemini-API-Key"] || req.query.apiKey;
+  if (headerKey && typeof headerKey === "string" && headerKey.trim().length > 0) {
+    return new GoogleGenAI({
+      apiKey: headerKey.trim(),
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+  }
+  return ai;
+}
+
 interface GenerateWithRetryOptions {
   model: string;
   contents: any;
@@ -549,7 +564,8 @@ app.post("/api/auth-setup/test", express.json(), async (req, res) => {
 
 // Endpoint to check if the Gemini client is loaded with an API key
 app.get("/api/ai-status", (req, res) => {
-  res.json({ aiActive: !!ai, hasQuotaLimit });
+  const activeAi = getAiClient(req);
+  res.json({ aiActive: !!activeAi, hasQuotaLimit, serverAiActive: !!ai });
 });
 
 // Dynamic parsing agent endpoint for custom reports upload simulator
@@ -569,9 +585,10 @@ app.post("/api/parser/parse", async (req, res) => {
 
   try {
     let extractedData = null;
-    if (ai) {
+    const activeAi = getAiClient(req);
+    if (activeAi) {
       try {
-        const response = await generateContentWithRetryAndFallback(ai, {
+        const response = await generateContentWithRetryAndFallback(activeAi, {
           model: "gemini-3.5-flash",
           contents: prompt,
           config: {
@@ -642,6 +659,7 @@ app.post("/api/parser/parse", async (req, res) => {
 // Dynamic LangGraph Multi-Agent Simulation Validation Trigger endpoint
 app.post("/api/runs/execute", async (req, res) => {
   const { vulnerability, useRealAi, auth_setup } = req.body;
+  const activeAi = getAiClient(req);
   if (!vulnerability) {
     return res.status(400).json({ error: "Missing vulnerability data for validation run." });
   }
@@ -989,7 +1007,7 @@ app.post("/api/runs/execute", async (req, res) => {
   let latency_ms = 450;
   let confidenceVal = isVulnerableResult ? 0.95 : 0.05;
 
-  if (useRealAi && ai) {
+  if (useRealAi && activeAi) {
     const startTime = Date.now();
     try {
       const prompt = `
@@ -1026,7 +1044,7 @@ app.post("/api/runs/execute", async (req, res) => {
         }
       `;
 
-      const response = await generateContentWithRetryAndFallback(ai, {
+      const response = await generateContentWithRetryAndFallback(activeAi, {
         model: "gemini-3.5-flash",
         contents: prompt,
         config: {
@@ -1094,7 +1112,7 @@ app.post("/api/runs/execute", async (req, res) => {
   addLog("Remediation Agent", "success", "Constructed custom code mitigation blocks and safe patch strategies.");
 
   const metric: any = {
-    model: useRealAi && ai ? "gemini-3.5-flash" : "Simulated Local Threat Scoring Hub",
+    model: useRealAi && activeAi ? "gemini-3.5-flash" : "Simulated Local Threat Scoring Hub",
     tokens,
     cost,
     latency_ms,
