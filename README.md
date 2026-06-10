@@ -5,7 +5,6 @@ El **Agentic Security Orchestector** (https://github.com/securitygap/Agentic-Sec
 Esta solución aprovecha la inteligencia artificial de **Google Gemini 3.5**, flujos de orquestación con **LangGraph** y un motor persistente en **PostgreSQL** para transformar informes crudos y ruidosos en conclusiones validadas con evidencias tangibles y sugerencias de remediación listas para producción.
 
 ---
-
 ## 🧭 El Desafío de la Entrada y la Estandarización
 
 Uno de los principales desafíos en la automatización del triage de seguridad es la gran variedad de formatos en los reportes de vulnerabilidades. Los informes manuales suelen entregarse en formato **PDF**, mientras que las herramientas automatizadas como **SonarQube, OWASP ZAP, Burp Suite, Acunetix, Invicti o Veracode** emiten archivos estructurales en formatos **JSON, XML o CSV**.
@@ -13,7 +12,6 @@ Uno de los principales desafíos en la automatización del triage de seguridad e
 Para resolver esta heterogeneidad, el **Agentic Security Orchestector** define una estructura estandarizada intermedia que cubre todos los posibles casos, adaptando cualquier reporte entrante mediante el **Parser Agent**. Esto permite un procesamiento uniforme por parte del motor de ejecución y los agentes de validación activa.
 
 ---
-
 ## 🛠️ ¿Cómo se realiza el Triage de cada Vulnerabilidad?
 
 Cuando la plataforma recibe un reporte en formato JSON, no asume automáticamente que todos los hallazgos son verdaderas brechas. En su lugar, ejecuta un riguroso proceso de **Triage y Validación Dinámica** operado por agentes especializados de manera coordinada:
