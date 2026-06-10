@@ -9,6 +9,20 @@ import firebaseConfig from "./firebase-applet-config.json" assert { type: "json"
 
 dotenv.config();
 
+const ALLOWED_OUTBOUND_HOSTS = new Set(["juice-shopa.onrender.com", "localhost"]);
+
+function isAllowedOutboundUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+    return ALLOWED_OUTBOUND_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 const app = express();
 const PORT = 3000;
 
@@ -797,6 +811,9 @@ app.post("/api/runs/execute", async (req, res) => {
   const formattedEndpoint = endpointPath.startsWith("/") ? endpointPath : `/${endpointPath}`;
   let targetUrl = vulnerability.url || `https://juice-shopa.onrender.com${formattedEndpoint}`;
   targetUrl = targetUrl.replace(/([^:]\/)\/+/g, "$1");
+  if (!isAllowedOutboundUrl(targetUrl)) {
+    return res.status(400).json({ error: "Invalid or disallowed target URL." });
+  }
   
   let realRequestHeaders: Record<string, string> = {
     "User-Agent": "Threat-Copilot-Active-Validator/1.0",
